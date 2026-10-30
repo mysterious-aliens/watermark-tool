@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>图片水印助手 · 批量加水印</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #f6f8fb;
+    --panel: #ffffff;
+    --line: #e5e9f0;
+    --text: #1a2233;
+    --muted: #6b7688;
+    --accent: #2563eb;
+    --accent-soft: #e8efff;
+    --radius: 14px;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 26px;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+  .brand i {
+    display: grid; place-items: center;
+    width: 32px; height: 32px; border-radius: 9px;
+    background: linear-gradient(135deg, #2563eb, #38bdf8);
+    color: #fff; font-style: normal; font-size: 15px;
+  }
+  .logo-link { font-size: 13px; color: var(--muted); text-decoration: none; }
+  .logo-link:hover { color: var(--accent); }
+
+  .layout { display: grid; grid-template-columns: 330px 1fr; gap: 0; min-height: calc(100vh - 65px); }
+
+  .sidebar {
+    padding: 20px;
+    background: #fff;
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+  }
+  .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin: 18px 0 10px;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  .dropzone {
+    display: grid;
+    place-items: center;
+    gap: 6px;
+    padding: 26px 12px;
+    text-align: center;
+    border: 1.5px dashed #c8d3e6;
+    border-radius: 12px;
+    background: #fbfcff;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--accent-soft); }
+  .dropzone .big { font-size: 26px; }
+  .dropzone p { font-size: 13px; color: var(--text); font-weight: 600; }
+  .dropzone span { font-size: 11.5px; color: var(--muted); }
+
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+  .field input[type="text"] {
+    width: 100%; padding: 9px 11px;
+    font-size: 13.5px; color: var(--text);
+    border: 1px solid var(--line); border-radius: 9px;
+    outline: none; background: #fbfcff;
+  }
+  .field input[type="text"]:focus { border-color: var(--accent); }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row input[type="range"] { flex: 1; accent-color: var(--accent); }
+  .row .val { width: 46px; text-align: right; font-size: 12px; color: var(--muted); }
+  input[type="color"] { width: 40px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: #fff; cursor: pointer; }
+  .hex { font-size: 12px; color: var(--muted); }
+
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg button {
+    flex: 1; padding: 8px 10px; font-size: 12.5px;
+    color: var(--muted); background: #f4f6fb;
+    border: 1px solid var(--line); border-radius: 9px; cursor: pointer;
+    transition: all .15s;
+  }
+  .seg button.active { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+  .grid9 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .grid9 button {
+    height: 34px; border-radius: 8px;
+    border: 1px solid var(--line); background: #f4f6fb;
+    cursor: pointer; color: var(--muted); font-size: 12px;
+  }
+  .grid9 button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .btn-main {
+    width: 100%; padding: 11px;
+    font-size: 14px; font-weight: 600; color: #fff;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border: none; border-radius: 10px; cursor: pointer;
+    margin-top: 8px;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, .22);
+    transition: transform .15s;
+  }
+  .btn-main:hover { transform: translateY(-1px); }
+  .btn-main:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  .stage { padding: 26px; display: flex; flex-direction: column; gap: 16px; }
+  .stage-head { display: flex; align-items: center; justify-content: space-between; }
+  .stage-head h2 { font-size: 15px; font-weight: 600; }
+  .stage-head span { font-size: 12.5px; color: var(--muted); }
+
+  .canvas-wrap {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    min-height: 420px;
+    background:
+      linear-gradient(45deg, #eef1f7 25%, transparent 25%, transparent 75%, #eef1f7 75%),
+      linear-gradient(45deg, #eef1f7 25%, #f9fafc 25%, #f9fafc 75%, #eef1f7 75%);
+    background-size: 22px 22px;
+    background-position: 0 0, 11px 11px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+  }
+  #preview { max-width: 100%; max-height: 68vh; display: none; }
+  .empty { text-align: center; color: var(--muted); font-size: 13px; }
+  .empty .ico { font-size: 34px; display: block; margin-bottom: 8px; }
+
+  .thumbs { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+  .thumb {
+    position: relative;
+    width: 76px; height: 76px;
+    border-radius: 10px; overflow: hidden;
+    border: 2px solid transparent; cursor: pointer; flex: 0 0 auto;
+    background: #eef1f7;
+  }
+  .thumb.active { border-color: var(--accent); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb .x {
+    position: absolute; top: 2px; right: 2px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(0,0,0,.55); color: #fff;
+    font-size: 11px; line-height: 18px; text-align: center;
+    cursor: pointer; opacity: 0; transition: opacity .15s;
+  }
+  .thumb:hover .x { opacity: 1; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><i>💧</i> 图片水印助手</div>
+  <a class="logo-link" href="#help">使用说明</a>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="section-title">图片管理</div>
+    <div class="dropzone" id="dropzone">
+      <div class="big">🖼️</div>
+      <p>点击或拖拽上传图片</p>
+      <span>支持 JPG / PNG / WebP，可多选</span>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" multiple hidden />
+
+    <div class="section-title">水印设置</div>
+    <div class="field">
+      <label>水印文字</label>
+      <input type="text" id="wmText" value="图片水印助手" maxlength="24" />
+    </div>
+    <div class="field">
+      <label>字号</label>
+      <div class="row">
+        <input type="range" id="wmSize" min="12" max="120" value="36" />
+        <span class="val" id="wmSizeVal">36px</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>颜色</label>
+      <div class="row">
+        <input type="color" id="wmColor" value="#ffffff" />
+        <span class="hex" id="wmColorVal">#ffffff</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>透明度</label>
+      <div class="row">
+        <input type="range" id="wmOpacity" min="10" max="100" value="70" />
+        <span class="val" id="wmOpacityVal">70%</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>旋转角度</label>
+      <div class="row">
+        <input type="range" id="wmRotate" min="-45" max="45" value="0" />
+        <span class="val" id="wmRotateVal">0°</span>
+      </div>
+    </div>
+
+    <div class="section-title">铺满方式</div>
+    <div class="seg" id="modeSeg">
+      <button data-mode="single" class="active">单个水印</button>
+      <button data-mode="tile">平铺水印</button>
+    </div>
+
+    <div class="section-title">位置</div>
+    <div class="grid9" id="posGrid">
+      <button data-pos="tl">左上</button>
+      <button data-pos="tc">上中</button>
+      <button data-pos="tr">右上</button>
+      <button data-pos="ml">左中</button>
+      <button data-pos="mc" class="active">居中</button>
+      <button data-pos="mr">右中</button>
+      <button data-pos="bl">左下</button>
+      <button data-pos="bc">下中</button>
+      <button data-pos="br">右下</button>
+    </div>
+
+    <button class="btn-main" id="downloadBtn" disabled>下载当前图片</button>
+    <button class="btn-main" id="downloadAllBtn" disabled style="margin-top:8px;background:#fff;color:var(--accent);border:1px solid var(--accent);box-shadow:none">下载全部</button>
+  </aside>
+
+  <main class="stage">
+    <div class="stage-head">
+      <h2>预览</h2>
+      <span id="hint">上传图片后可调节水印参数</span>
+    </div>
+    <div class="canvas-wrap">
+      <div class="empty" id="empty">
+        <span class="ico">🖼️</span>
+        暂无图片，先从左侧上传
+      </div>
+      <canvas id="preview"></canvas>
+    </div>
+    <div class="thumbs" id="thumbs"></div>
+  </main>
+</div>
+
+<script>
+(() => {
+  const state = {
+    files: [],      // { name, img, url }
+    active: 0,
+    text: '图片水印助手',
+    size: 36,
+    color: '#ffffff',
+    opacity: 0.7,
+    rotate: 0,
+    mode: 'single',
+    pos: 'mc',
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('preview');
+  const ctx = canvas.getContext('2d');
+
+  // ---------- 上传 ----------
+  const dz = $('dropzone');
+  const fileInput = $('fileInput');
+
+  dz.addEventListener('click', () => fileInput.click());
+  dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dz.classList.remove('drag');
+    addFiles([...e.dataTransfer.files]);
+  });
+  fileInput.addEventListener('change', () => addFiles([...fileInput.files]));
+
+  function addFiles(list) {
+    const imgs = list.filter((f) => f.type.startsWith('image/'));
+    if (!imgs.length) return;
+    imgs.forEach((file) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        state.files.push({ name: file.name, img, url });
+        if (state.files.length === 1) state.active = 0;
+        renderThumbs();
+        draw();
+      };
+      img.src = url;
+    });
+  }
+
+  function renderThumbs() {
+    const box = $('thumbs');
+    box.innerHTML = '';
+    state.files.forEach((f, i) => {
+      const d = document.createElement('div');
+      d.className = 'thumb' + (i === state.active ? ' active' : '');
+      d.innerHTML = `<img src="${f.url}" alt="" /><span class="x">×</span>`;
+      d.addEventListener('click', (e) => {
+        if (e.target.classList.contains('x')) {
+          state.files.splice(i, 1);
+          state.active = Math.min(state.active, Math.max(0, state.files.length - 1));
+          renderThumbs();
+          draw();
+          return;
+        }
+        state.active = i;
+        renderThumbs();
+        draw();
+      });
+      box.appendChild(d);
+    });
+  }
+
+  // ---------- 控件 ----------
+  $('wmText').addEventListener('input', (e) => { state.text = e.target.value; draw(); });
+  $('wmSize').addEventListener('input', (e) => {
+    state.size = +e.target.value; $('wmSizeVal').textContent = state.size + 'px'; draw();
+  });
+  $('wmColor').addEventListener('input', (e) => {
+    state.color = e.target.value; $('wmColorVal').textContent = state.color; draw();
+  });
+  $('wmOpacity').addEventListener('input', (e) => {
+    state.opacity = e.target.value / 100; $('wmOpacityVal').textContent = e.target.value + '%'; draw();
+  });
+  $('wmRotate').addEventListener('input', (e) => {
+    state.rotate = +e.target.value; $('wmRotateVal').textContent = state.rotate + '°'; draw();
+  });
+
+  $('modeSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    [...$('modeSeg').children].forEach((x) => x.classList.remove('active'));
+    b.classList.add('active');
+    state.mode = b.dataset.mode;
+    draw();
+  });
+
+  $('posGrid').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    [...$('posGrid').children].forEach((x) => x.classList.remove('active'));
+    b.classList.add('active');
+    state.pos = b.dataset.pos;
+    draw();
+  });
+
+  // ---------- 绘制 ----------
+  function currentFile() { return state.files[state.active]; }
+
+  function draw() {
+    const f = currentFile();
+    const empty = $('empty');
+    if (!f) {
+      canvas.style.display = 'none';
+      empty.style.display = 'block';
+      $('downloadBtn').disabled = true;
+      $('downloadAllBtn').disabled = true;
+      $('hint').textContent = '上传图片后可调节水印参数';
+      return;
+    }
+    empty.style.display = 'none';
+    canvas.style.display = 'block';
+    $('downloadBtn').disabled = false;
+    $('downloadAllBtn').disabled = false;
+
+    const { img } = f;
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+
+    $('hint').textContent = `第 ${state.active + 1}/${state.files.length} 张 · ${img.naturalWidth}×${img.naturalHeight}`;
+
+    if (!state.text.trim()) return;
+
+    const scale = Math.max(1, img.naturalWidth / 1200); // 大图按比例放大字号
+    const fontSize = state.size * scale;
+    ctx.save();
+    ctx.globalAlpha = state.opacity;
+    ctx.fillStyle = state.color;
+    ctx.font = `600 ${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+
+    if (state.mode === 'tile') {
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((state.rotate * Math.PI) / 180);
+      const w = ctx.measureText(state.text).width;
+      const stepX = w + fontSize * 2;
+      const stepY = fontSize * 3;
+      for (let y = -canvas.height; y < canvas.height; y += stepY) {
+        for (let x = -canvas.width; x < canvas.width; x += stepX) {
+          ctx.fillText(state.text, x, y);
+        }
+      }
+    } else {
+      const pad = fontSize * 0.8;
+      const positions = {
+        tl: [pad, pad, 'left', 'top'], tc: [canvas.width / 2, pad, 'center', 'top'], tr: [canvas.width - pad, pad, 'right', 'top'],
+        ml: [pad, canvas.height / 2, 'left', 'middle'], mc: [canvas.width / 2, canvas.height / 2, 'center', 'middle'], mr: [canvas.width - pad, canvas.height / 2, 'right', 'middle'],
+        bl: [pad, canvas.height - pad, 'left', 'bottom'], bc: [canvas.width / 2, canvas.height - pad, 'center', 'bottom'], br: [canvas.width - pad, canvas.height - pad, 'right', 'bottom'],
+      };
+      const [x, y, align, baseline] = positions[state.pos];
+      ctx.textAlign = align;
+      ctx.textBaseline = baseline;
+      ctx.translate(x, y);
+      ctx.rotate((state.rotate * Math.PI) / 180);
+      ctx.fillText(state.text, 0, 0);
+    }
+    ctx.restore();
+  }
+
+  // ---------- 下载 ----------
+  function download(index) {
+    const f = state.files[index];
+    if (!f) return;
+    const old = state.active;
+    state.active = index;
+    draw();
+    canvas.toBlob((blob) => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = f.name.replace(/\.\w+$/, '') + '-watermark.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      state.active = old;
+      draw();
+    }, 'image/png');
+  }
+
+  $('downloadBtn').addEventListener('click', () => download(state.active));
+  $('downloadAllBtn').addEventListener('click', () => {
+    state.files.forEach((_, i) => setTimeout(() => download(i), i * 500));
+  });
+})();
+</script>
+</body>
+</html>
